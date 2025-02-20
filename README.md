@@ -1,2 +1,2 @@
 # dashboard-contact-center
-![dash](dash.jpg)
+![dash](image/dash.jpg)
