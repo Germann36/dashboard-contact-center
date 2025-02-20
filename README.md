@@ -1,2 +1,2 @@
-# dashboard-contact-center
+# Дашборд «Аналитика контакт-центра за 2019 год»
 ![dash](image/dash-1.jpg)
