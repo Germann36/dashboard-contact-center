@@ -44,14 +44,14 @@ WITH base_call_all AS (
            status_client,
            create_date_status, -- Дата, когда заявку взяли в работу
            manager,
-           ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY create_date_status ASC) AS rn -- Ранжируем звонки клиентам от старых к новым
+           ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY create_date_status ASC) AS rn -- Ранжируем звонки
       FROM client_call_all
      WHERE status_client LIKE 'Call:%'
        AND source_client IN (SELECT name_source FROM source_list)
 ),
 t_work_sched AS (
     SELECT *,
-           EXTRACT(dow FROM create_date_client) AS dow, -- Достанем день недели из даты для следующего запроса (воскресенье — это 0),
+           EXTRACT(dow FROM create_date_client) AS dow, -- День недели (воскресенье — это 0),
            create_date_client::date AS date_request,
            create_date_client::time AS oclock
       FROM base_call_all
