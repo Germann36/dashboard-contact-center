@@ -15,15 +15,15 @@ INSERT INTO source_list (name_source)
 VALUES ('source 1'), ('source 2'), ('source 3'), ('source 4');
 ```
 
-### Шаг 2: Создание представления для отфильтрованных заявок
+### Шаг 2: Создание представления с клиентами по указанным источникам.
 
-Далее создадим представление, которое будет содержать все заявки клиентов, обратившихся через указанные источники. Это представление упростит дальнейшую работу с данными.
+Далее создадим представление, которое будет содержать всех уникальных клиентов, обратившихся через указанные источники.
 
 ```sql
 CREATE OR REPLACE VIEW client_requests AS
 SELECT id_client,
        create_date_client
-  FROM all_client
+  FROM  dict_all_client
  WHERE promotion IN (SELECT name_source FROM source_list);
 ```
 
@@ -41,7 +41,7 @@ WITH base_call_all AS (
            create_date_status, -- Дата, когда заявку взяли в работу
            manager,
            ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY create_date_status ASC) AS rn -- Ранжируем звонки
-      FROM client_call_all
+      FROM tr_client_all
      WHERE status_client LIKE 'Call:%'
        AND source_client IN (SELECT name_source FROM source_list)
 ),
