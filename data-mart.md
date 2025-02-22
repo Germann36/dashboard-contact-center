@@ -25,7 +25,8 @@ VALUES ('source 1'), ('source 2'), ('source 3'), ('source 4');
 
 ```sql
 CREATE OR REPLACE VIEW client_requests AS
-SELECT *
+SELECT id_client,
+       create_date_client
   FROM all_client
  WHERE promotion IN (SELECT name_source FROM source_list);
 ```
@@ -86,18 +87,18 @@ SELECT *,
 CREATE OR REPLACE MATERIALIZED VIEW dash_contact_center AS
 SELECT cr.id_client,
        CASE 
-           WHEN bucf.create_date_status IS NULL 
+           WHEN ccf.create_date_status IS NULL 
                 THEN 'Не позвонили'
            ELSE 'Позвонили'
        END AS response,
-       bucf.manager AS manager_id,
+       ccf.manager AS manager_id,
        cr.create_date_client AS date_request, -- Дата, когда заявка попала в систему
-       bucf.work_app AS date_registration, -- Дата для начала отсчета SLA (только будние дни и рабочее время)
-       bucf.create_date_status AS date_response, -- Дата, когда менеджер позвонил клиенту
-       bucf.interval_hours AS interval_hours, -- Разница между датой регистрации заявки и датой звонка в часах
-       bucf.interval_minutes AS interval_minutes -- Разница между датой регистрации заявки и датой звонка в минутах
+       ccf.work_app AS date_registration, -- Дата для начала отсчета SLA (только будние дни и рабочее время)
+       ccf.create_date_status AS date_response, -- Дата, когда менеджер позвонил клиенту
+       ccf.interval_hours AS interval_hours, -- Разница между датой регистрации заявки и датой звонка в часах
+       ccf.interval_minutes AS interval_minutes -- Разница между датой регистрации заявки и датой звонка в минутах
   FROM client_requests cr
-  LEFT JOIN base_unit_callfirst bucf ON bucf.id_client = cr.id_client
+  LEFT JOIN client_callfirst ccf ON ccf.id_client = cr.id_client
  WHERE bucf.interval_hours IS NOT NULL;
 ```
 
