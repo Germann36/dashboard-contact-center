@@ -112,6 +112,83 @@ SELECT cr.id_client
  WHERE bucf.interval_hours IS NOT NULL
 ```
 
-----
-Таким образом, мы сделали витрину, которая будет идти в дашборд. \
-Данные могут обновляться ежедневнего через планировщик.
+Итак, полный запрос выглядит так
+```sql
+CREATE TEMPORARY TABLE source_list (name_source TEXT)
+;
+INSERT INTO source_list (name_source) VALUES ('source 1'), ('source 2'), ('source 3'), ('source 4')
+;
+
+
+CREATE OR REPLACE VIEW client_requests AS
+SELECT *
+  FROM all_client
+ WHERE TRUE 
+   AND promotion IN (SELECT name_source FROM source_list)
+;
+
+
+CREATE OR REPLACE VIEW client_callfirst AS
+WITH
+base_call_all AS(
+	SELECT id_client
+		  ,create_date_client --Дата, когда заявка упала в систему
+		  ,source_client
+		  ,status_client
+		  ,create_date_status --Дата, когда заявке проставили статус
+		  ,manager
+		  ,ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY create_date_status ASC) AS rn
+	  FROM client_status
+	 WHERE TRUE
+  	   AND status_client LIKE 'Call:%'
+  	   AND source_client IN (SELECT name_source FROM source_list)
+),
+t_work_sched AS(
+	SELECT *
+	 	  ,EXTRACT(dow FROM create_date_client) AS dow
+	   	  ,create_date_client::time AS oclock
+  	  FROM base_call_all
+ 	 WHERE rn = 1
+),
+t_work_app AS(
+	SELECT *
+	  	  ,CASE 
+		        WHEN dow NOT IN (6, 0) AND (oclock BETWEEN '00:00:00' AND '08:59:59') 
+	  	 	         THEN CONCAT(create_date_client::date, ' ', '09:00:00')::timestamp
+		        WHEN dow NOT IN (5, 6, 0) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
+	  	 	         THEN create_date_client::date + INTERVAL '1 day 9 hours'
+		        WHEN dow IN (5) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
+	  	 	         THEN create_date_client::date + INTERVAL '3 day 9 hours'
+		        WHEN dow IN (6)
+	  	 	         THEN create_date_client::date + INTERVAL '2 day 9 hours'
+		        WHEN dow IN (0)
+	  	 	         THEN create_date_client::date + INTERVAL '1 day 9 hours'
+	  	        ELSE create_date_client
+	        END AS work_app
+      FROM t_work_sched
+)
+
+SELECT *
+	  ,ROUND(EXTRACT(EPOCH FROM create_date_status - work_app) / 3600, 2) AS interval_hours
+	  ,ROUND(EXTRACT(EPOCH FROM create_date_status - work_app) / 60, 2) AS interval_minutes
+  FROM t_work_app
+; 
+
+
+CREATE OR REPLACE MATERIALIZED VIEW dash_contact_center AS
+SELECT cr.id_client
+	  ,CASE 
+	        WHEN bucf.create_date_status IS NULL 
+	             THEN 'Не позвонили'
+	  	    ELSE 'Позвонили'
+	    END AS response
+	  ,bucf.manager AS manager_id
+	  ,cr.create_date_client AS date_request
+	  ,bucf.work_app AS date_registration
+	  ,bucf.create_date_status AS date_response
+	  ,bucf.interval_hours AS interval_hours
+	  ,bucf.interval_minutes AS interval_minutes
+  FROM client_requests cr
+  LEFT JOIN base_unit_callfirst bucf ON bucf.id_client = cr.id_client
+ WHERE bucf.interval_hours IS NOT NULL
+```
