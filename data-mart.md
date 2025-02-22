@@ -36,26 +36,34 @@ SELECT id_client,
 Теперь создадим представление, которое будет содержать информацию о первом звонке клиенту. Мы будем учитывать только первый звонок, так как он является ключевым для расчета времени ответа.
 
 ```sql
-CREATE OR REPLACE VIEW client_callfirst AS
+CREATE OR REPLACE VIEW client_call_first AS
 WITH base_call_all AS (
     SELECT id_client,
            create_date_client, -- Дата, когда заявка упала в систему
            source_client,
            status_client,
-           create_date_status, -- Дата, когда заявке проставили статус
+           create_date_status, -- Дата, когда заявку взяли в работу
            manager,
            ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY create_date_status ASC) AS rn -- Ранжируем звонки клиентам от старых к новым
-      FROM client_status
+      FROM client_call_all
      WHERE status_client LIKE 'Call:%'
        AND source_client IN (SELECT name_source FROM source_list)
 ),
 t_work_sched AS (
     SELECT *,
-           EXTRACT(dow FROM create_date_client) AS dow, -- Достаем день недели из даты для следующего запроса (воскресенье — это 0)
+           EXTRACT(dow FROM create_date_client) AS dow, -- Достанем день недели из даты для следующего запроса (воскресенье — это 0),
+           create_date_client::date AS date_request,
            create_date_client::time AS oclock
       FROM base_call_all
      WHERE rn = 1
 ),
+```
+
+### Шаг 4: 
+
+Теперь нужно реализовать правило, которое будет переносить время заявки с нерабочего времени на начало смены менеджера.
+
+```sql
 t_work_app AS (
     SELECT *,
            CASE 
@@ -72,6 +80,27 @@ t_work_app AS (
                ELSE create_date_client
            END AS work_app
       FROM t_work_sched
+
+           CASE 
+               -- Если заявка пришла в нерабочее время в будни, сдвигаем на 9:00 текущего дня
+               WHEN day_of_week NOT IN (6, 0) AND (oclock BETWEEN '00:00:00' AND '08:59:59') 
+                    THEN CONCAT(create_date_client::date, ' ', '09:00:00')::timestamp
+               -- Если заявка пришла вечером в будни, сдвигаем на 9:00 следующего дня
+               WHEN day_of_week NOT IN (5, 6, 0) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
+                    THEN create_date_client::date + INTERVAL '1 day 9 hours'
+               -- Если заявка пришла вечером в пятницу, сдвигаем на 9:00 понедельника
+               WHEN day_of_week IN (5) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
+                    THEN create_date_client::date + INTERVAL '3 day 9 hours'
+               -- Если заявка пришла в субботу, сдвигаем на 9:00 понедельника
+               WHEN day_of_week IN (6)
+                    THEN create_date_client::date + INTERVAL '2 day 9 hours'
+               -- Если заявка пришла в воскресенье, сдвигаем на 9:00 понедельника
+               WHEN day_of_week IN (0)
+                    THEN create_date_client::date + INTERVAL '1 day 9 hours'
+               -- В остальных случаях оставляем дату как есть
+               ELSE create_date_client
+           END AS work_app
+
 )
 SELECT *,
        ROUND(EXTRACT(EPOCH FROM create_date_status - work_app) / 3600, 2) AS interval_hours,
@@ -79,7 +108,7 @@ SELECT *,
   FROM t_work_app;
 ```
 
-### Шаг 4: Создание материализованного представления для дашборда
+### Шаг 5: Создание материализованного представления для дашборда
 
 Теперь создадим материализованное представление, которое будет содержать все необходимые данные для дашборда. Это представление будет хранить результаты запроса, что ускорит доступ к данным и улучшит производительность дашборда.
 
@@ -98,7 +127,7 @@ SELECT cr.id_client,
        ccf.interval_hours AS interval_hours, -- Разница между датой регистрации заявки и датой звонка в часах
        ccf.interval_minutes AS interval_minutes -- Разница между датой регистрации заявки и датой звонка в минутах
   FROM client_requests cr
-  LEFT JOIN client_callfirst ccf ON ccf.id_client = cr.id_client
+  LEFT JOIN client_call_first ccf ON ccf.id_client = cr.id_client
  WHERE bucf.interval_hours IS NOT NULL;
 ```
 
