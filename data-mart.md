@@ -77,34 +77,15 @@ t_work_app AS (
                WHEN dow IN (5) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
                     THEN date_request + INTERVAL '3 day 9 hours'
                -- Если заявка пришла в субботу, сдвигаем на 9:00 понедельника
-               WHEN dow IN (6) THEN date_request + INTERVAL '2 day 9 hours'
+               WHEN dow IN (6)
+                    THEN date_request + INTERVAL '2 day 9 hours'
                -- Если заявка пришла в воскресенье, сдвигаем на 9:00 понедельника
-               WHEN dow IN (0) THEN date_request + INTERVAL '1 day 9 hours'
+               WHEN dow IN (0)
+                    THEN date_request + INTERVAL '1 day 9 hours'
                -- В остальных случаях оставляем дату как есть
                ELSE date_request
            END AS work_app
       FROM t_work_sched
-
-           CASE 
-               -- Если заявка пришла в нерабочее время в будни, сдвигаем на 9:00 текущего дня
-               WHEN day_of_week NOT IN (6, 0) AND (oclock BETWEEN '00:00:00' AND '08:59:59') 
-                    THEN CONCAT(create_date_client::date, ' ', '09:00:00')::timestamp
-               -- Если заявка пришла вечером в будни, сдвигаем на 9:00 следующего дня
-               WHEN day_of_week NOT IN (5, 6, 0) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
-                    THEN create_date_client::date + INTERVAL '1 day 9 hours'
-               -- Если заявка пришла вечером в пятницу, сдвигаем на 9:00 понедельника
-               WHEN day_of_week IN (5) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
-                    THEN create_date_client::date + INTERVAL '3 day 9 hours'
-               -- Если заявка пришла в субботу, сдвигаем на 9:00 понедельника
-               WHEN day_of_week IN (6)
-                    THEN create_date_client::date + INTERVAL '2 day 9 hours'
-               -- Если заявка пришла в воскресенье, сдвигаем на 9:00 понедельника
-               WHEN day_of_week IN (0)
-                    THEN create_date_client::date + INTERVAL '1 day 9 hours'
-               -- В остальных случаях оставляем дату как есть
-               ELSE create_date_client
-           END AS work_app
-
 )
 SELECT *,
        ROUND(EXTRACT(EPOCH FROM create_date_status - work_app) / 3600, 2) AS interval_hours,
