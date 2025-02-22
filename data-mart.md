@@ -66,18 +66,22 @@ t_work_sched AS (
 ```sql
 t_work_app AS (
     SELECT *,
-           CASE 
+           CASE
+               -- Если заявка пришла в нерабочее время в будни, сдвигаем на 9:00 текущего дня
                WHEN dow NOT IN (6, 0) AND (oclock BETWEEN '00:00:00' AND '08:59:59') 
-                    THEN CONCAT(create_date_client::date, ' ', '09:00:00')::timestamp
+                    THEN CONCAT(date_request, ' ', '09:00:00')::timestamp
+               -- Если заявка пришла вечером в будни, сдвигаем на 9:00 следующего дня
                WHEN dow NOT IN (5, 6, 0) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
-                    THEN create_date_client::date + INTERVAL '1 day 9 hours'
+                    THEN date_request + INTERVAL '1 day 9 hours'
+               -- Если заявка пришла вечером в пятницу, сдвигаем на 9:00 понедельника
                WHEN dow IN (5) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
-                    THEN create_date_client::date + INTERVAL '3 day 9 hours'
-               WHEN dow IN (6)
-                    THEN create_date_client::date + INTERVAL '2 day 9 hours'
-               WHEN dow IN (0)
-                    THEN create_date_client::date + INTERVAL '1 day 9 hours'
-               ELSE create_date_client
+                    THEN date_request + INTERVAL '3 day 9 hours'
+               -- Если заявка пришла в субботу, сдвигаем на 9:00 понедельника
+               WHEN dow IN (6) THEN date_request + INTERVAL '2 day 9 hours'
+               -- Если заявка пришла в воскресенье, сдвигаем на 9:00 понедельника
+               WHEN dow IN (0) THEN date_request + INTERVAL '1 day 9 hours'
+               -- В остальных случаях оставляем дату как есть
+               ELSE date_request
            END AS work_app
       FROM t_work_sched
 
