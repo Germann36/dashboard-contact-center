@@ -11,7 +11,7 @@ CREATE TEMPORARY TABLE source_list (name_source TEXT)
 INSERT INTO source_list (name_source) VALUES ('source 1'), ('source 2'), ('source 3'), ('source 4')
 ;
 ```
-
+&nbsp;
 Далее выберем из базы клиентов всех, кто обратился через указанные источники. \
 Создаем обычное представление, чтобы в дальнейшем было удобно работать с получившейся таблицей.
 ```sql
