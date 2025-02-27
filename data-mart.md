@@ -52,7 +52,7 @@ date_registration AS(
               ,ws.manager
               ,ws.date_request
               ,ws.date_response
-	      ,CASE 
+	      ,CASE
                    -- Если день выходной или это пятница после 20:00, переносим на первый рабочий день
                    WHEN c.is_working = 0
 			OR (c.is_working = 1 AND ws.dow = 5 AND time_req > '20:00:00')
@@ -67,9 +67,9 @@ date_registration AS(
 		   WHEN c.is_working = 1 AND ws.dow != 5 AND ws.time_req > '20:00:00'
 		        THEN ws.date_req + INTERVAL '1 days 9 hours'	       		
 		   ELSE ws.date_request
-            END AS date_registration 
-           FROM work_schedul ws
-           LEFT JOIN d_calendar c ON ws.date_req = c.date_calendar
+               END AS date_registration 
+          FROM work_schedul ws
+          LEFT JOIN d_calendar c ON ws.date_req = c.date_calendar
 )
 ```
 
