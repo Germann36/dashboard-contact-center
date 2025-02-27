@@ -24,10 +24,10 @@ CREATE OR REPLACE VIEW v_call_first AS
 WITH
 base_call_all AS(
 	SELECT id_client
-		,date_request
-		,date_response
-		,manager
-		,ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY date_response ASC) AS rn
+              ,date_request
+              ,date_response
+              ,manager
+              ,ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY date_response ASC) AS rn
 	  FROM all_raw
 	 WHERE TRUE
   	   AND action_manager = 'Call'
@@ -35,11 +35,11 @@ base_call_all AS(
 ),
 work_schedul AS(
 	SELECT *
-             ,EXTRACT(dow FROM  date_request) AS dow --Воскресенье - это 0
-             ,date_request::date AS date_req
-             ,date_request::time AS time_req
-         FROM base_call_all
-        WHERE rn = 1
+              ,EXTRACT(dow FROM  date_request) AS dow --Воскресенье - это 0
+              ,date_request::date AS date_req
+              ,date_request::time AS time_req
+          FROM base_call_all
+         WHERE rn = 1
 ),
 ```
 
