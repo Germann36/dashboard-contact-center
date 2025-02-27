@@ -9,7 +9,8 @@
 
 Для начала создадим временную таблицу, которая будет содержать список источников, через которые клиенты обращаются в контакт-центр.
 ```sql
-CREATE TEMPORARY TABLE source_list (name_source TEXT);
+CREATE TEMPORARY TABLE source_list (name_source TEXT)
+;
 
 INSERT INTO source_list (name_source) 
 VALUES ('source 1'), ('source 2'), ('source 3'), ('source 4')
