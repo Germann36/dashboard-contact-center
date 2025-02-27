@@ -15,43 +15,31 @@ INSERT INTO source_list (name_source)
 VALUES ('source 1'), ('source 2'), ('source 3'), ('source 4');
 ```
 
-### Шаг 2: Создание представления с клиентами по указанным источникам.
+### Шаг 2: Создание представления для первого звонка клиенту
 
-Далее создадим представление, которое будет содержать всех уникальных клиентов, обратившихся через указанные источники.
-
-```sql
-CREATE OR REPLACE VIEW client_requests AS
-SELECT id_client,
-       create_date_client
-  FROM  dict_all_client
- WHERE promotion IN (SELECT name_source FROM source_list);
-```
-
-### Шаг 3: Создание представления для первого звонка клиенту
-
-Теперь создадим представление, которое будет содержать информацию о первом звонке клиенту. Мы будем учитывать только первый звонок, так как он является ключевым для расчета времени ответа.
+Теперь напишем представление, которое будет содержать информацию о первом звонке клиенту. Мы будем учитывать только первый звонок, так как он является ключевым для расчета времени ответа.
 
 ```sql
-CREATE OR REPLACE VIEW client_call_first AS
-WITH base_call_all AS (
-    SELECT id_client,
-           create_date_client, -- Дата, когда заявка упала в систему
-           source_client,
-           status_client,
-           create_date_status, -- Дата, когда заявку взяли в работу
-           manager,
-           ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY create_date_status ASC) AS rn -- Ранжируем звонки
-      FROM tr_client_all
-     WHERE status_client LIKE 'Call:%'
-       AND source_client IN (SELECT name_source FROM source_list)
+CREATE OR REPLACE VIEW v_call_first AS
+WITH
+base_call_all AS(
+	SELECT id_client
+		,date_request
+		,date_response
+		,manager
+		,ROW_NUMBER() OVER (PARTITION BY id_client ORDER BY date_response ASC) AS rn
+	  FROM all_raw
+	 WHERE TRUE
+  	   AND action_manager = 'Call'
+  	   AND source_client IN (SELECT name_source FROM source_list)
 ),
-t_work_sched AS (
-    SELECT *,
-           EXTRACT(dow FROM create_date_client) AS dow, -- День недели (воскресенье — это 0),
-           create_date_client::date AS date_request,
-           create_date_client::time AS oclock
-      FROM base_call_all
-     WHERE rn = 1
+work_schedul AS(
+	SELECT *
+             ,EXTRACT(dow FROM  date_request) AS dow --Воскресенье - это 0
+             ,date_request::date AS date_req
+             ,date_request::time AS time_req
+         FROM base_call_all
+        WHERE rn = 1
 ),
 ```
 
