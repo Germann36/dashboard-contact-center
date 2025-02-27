@@ -35,7 +35,7 @@ base_call_all AS(
 ),
 work_schedul AS(
 	SELECT *
-              ,EXTRACT(dow FROM  date_request) AS dow --Воскресенье - это 0
+              ,EXTRACT(dow FROM  date_request) AS dow
               ,date_request::date AS date_req
               ,date_request::time AS time_req
           FROM base_call_all
