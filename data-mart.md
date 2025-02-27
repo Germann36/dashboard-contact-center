@@ -43,38 +43,35 @@ work_schedul AS(
 ),
 ```
 
-### Шаг 4: Перенос заявки на рабочее время
+### Шаг 3: Перенос заявки на рабочее время
 
-По бизнес-правилу отсчет времени ответа (SLA) начинается с начала следующей рабочей смены, а не с момента поступления заявки. Для этого добавлено поле «Дата регистрации заявки», что делает расчеты точнее и справедливее.
-
+По бизнес-правилу отсчет времени ответа (SLA) начинается с начала следующей рабочей смены, а не с момента поступления заявки.
 ```sql
-t_work_app AS (
-    SELECT *,
-           CASE
-               -- Если заявка пришла в нерабочее время в будни, сдвигаем на 9:00 текущего дня
-               WHEN dow NOT IN (6, 0) AND (oclock BETWEEN '00:00:00' AND '08:59:59') 
-                    THEN CONCAT(date_request, ' ', '09:00:00')::timestamp
-               -- Если заявка пришла вечером в будни, сдвигаем на 9:00 следующего дня
-               WHEN dow NOT IN (5, 6, 0) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
-                    THEN date_request + INTERVAL '1 day 9 hours'
-               -- Если заявка пришла вечером в пятницу, сдвигаем на 9:00 понедельника
-               WHEN dow IN (5) AND (oclock BETWEEN '20:00:01' AND '23:59:59') 
-                    THEN date_request + INTERVAL '3 day 9 hours'
-               -- Если заявка пришла в субботу, сдвигаем на 9:00 понедельника
-               WHEN dow IN (6)
-                    THEN date_request + INTERVAL '2 day 9 hours'
-               -- Если заявка пришла в воскресенье, сдвигаем на 9:00 понедельника
-               WHEN dow IN (0)
-                    THEN date_request + INTERVAL '1 day 9 hours'
-               -- В остальных случаях оставляем дату как есть
-               ELSE date_request
-           END AS work_app
-      FROM t_work_sched
+date_registration AS(	
+	SELECT ws.id_client
+              ,ws.manager
+              ,ws.date_request
+              ,ws.date_response
+	      ,CASE 
+              -- Если день выходной или это пятница после 20:00, переносим на первый рабочий день
+                   WHEN c.is_working = 0
+			OR (c.is_working = 1 AND ws.dow = 5 AND time_req > '20:00:00')
+			   THEN (SELECT MIN(c.date_calendar)
+				   FROM d_calendar c
+				  WHERE c.date_calendar > ws.date_req 
+                                    AND c.is_working = 1) + INTERVAL '9 hours'
+              -- Если рабочий день до 09:00, переносим на 9 утра этого дня
+		   WHEN c.is_working = 1 AND ws.time_req < '09:00:00'
+                        THEN ws.date_req + INTERVAL '9 hours'
+              -- Если рабочий день (кроме пятницы) после 20:00, переносим на 9 утра следующего дня
+		   WHEN c.is_working = 1 AND ws.dow != 5 AND ws.time_req > '20:00:00'
+		        THEN ws.date_req + INTERVAL '1 days 9 hours'	       		
+		   ELSE ws.date_request
+             END AS date_registration 
+            FROM work_schedul ws
+            LEFT JOIN d_calendar c ON ws.date_req = c.date_calendar
 )
 ```
-**Комментарии** \
-При разработке алгоритма важно учитывать различные детали: праздничные дни, переносы смен и другие нюансы. \
-В следующей итерации усложним логику расчета. Возможно, хорошим решением будет создание календаря с разметкой дней: "Будние", "Выходные", "Праздники".
 
 ### Шаг 5: Расчет времени обработки заявки
 
