@@ -81,6 +81,7 @@ date_registration AS(
 SELECT *
       ,ROUND(EXTRACT(EPOCH FROM date_response - date_registration) / 3600, 2) AS interval_hours
   FROM date_registration
+;
 ```
 
 ### Шаг 6: Создание материализованного представления для дашборда
@@ -88,22 +89,21 @@ SELECT *
 Теперь создадим материализованное представление, которое будет содержать все необходимые данные для дашборда. Это представление будет хранить результаты запроса, что ускорит доступ к данным и улучшит производительность дашборда.
 
 ```sql
-CREATE OR REPLACE MATERIALIZED VIEW dash_contact_center AS
-SELECT cr.id_client,
-       CASE 
-           WHEN ccf.create_date_status IS NULL 
-                THEN 'Не позвонили'
-           ELSE 'Позвонили'
-       END AS response,
-       ccf.manager AS manager_id,
-       cr.create_date_client AS date_request, -- Дата, когда заявка попала в систему
-       ccf.work_app AS date_registration, -- Дата для начала отсчета SLA (только будние дни и рабочее время)
-       ccf.create_date_status AS date_response, -- Дата, когда менеджер позвонил клиенту
-       ccf.interval_hours AS interval_hours, -- Разница между датой регистрации заявки и датой звонка в часах
-       ccf.interval_minutes AS interval_minutes -- Разница между датой регистрации заявки и датой звонка в минутах
-  FROM client_requests cr
-  LEFT JOIN client_call_first ccf ON ccf.id_client = cr.id_client
- WHERE bucf.interval_hours IS NOT NULL;
+CREATE OR REPLACE VIEW dash_contact_center AS
+SELECT dc.id_client
+      ,CASE
+           WHEN vcf.date_response IS NULL
+                THEN 'wait'
+           ELSE 'done'
+       END AS call_status
+      ,dc.date_request
+      ,vcf.date_registration
+      ,vcf.date_response
+      ,vcf.interval_hours
+      ,vcf.manager 
+  FROM dict_candidate dc
+  LEFT JOIN v_call_first vcf ON vcf.id_client = dc."ID"
+ WHERE dc.source_client IN (SELECT name_source FROM source_list)
 ```
 
 ## Заключение
