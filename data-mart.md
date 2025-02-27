@@ -12,7 +12,8 @@
 CREATE TEMPORARY TABLE source_list (name_source TEXT);
 
 INSERT INTO source_list (name_source) 
-VALUES ('source 1'), ('source 2'), ('source 3'), ('source 4');
+VALUES ('source 1'), ('source 2'), ('source 3'), ('source 4')
+;
 ```
 
 ### Шаг 2: Создание представления для первого звонка клиенту
