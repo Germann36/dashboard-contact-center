@@ -24,7 +24,7 @@ VALUES ('source 1'), ('source 2'), ('source 3'), ('source 4')
 ```sql
 CREATE OR REPLACE VIEW v_call_first AS
 WITH
-base_call_all AS(
+all_calls AS(
 	SELECT id_client
               ,date_request
               ,date_response
@@ -35,12 +35,12 @@ base_call_all AS(
   	   AND action_manager = 'Call'
   	   AND source_client IN (SELECT name_source FROM source_list)
 ),
-work_schedul AS(
+calls_first AS(
 	SELECT *
               ,EXTRACT(dow FROM  date_request) AS dow
               ,date_request::date AS date_req
               ,date_request::time AS time_req
-          FROM base_call_all
+          FROM all_calls
          WHERE rn = 1
 ),
 ```
@@ -49,29 +49,29 @@ work_schedul AS(
 
 По бизнес-правилу отсчет времени ответа (SLA) начинается с начала следующей рабочей смены, а не с момента поступления заявки.
 ```sql
-date_registration AS(	
-	SELECT ws.id_client
-              ,ws.manager
-              ,ws.date_request
-              ,ws.date_response
+shift_request AS(	
+	SELECT cf.id_client
+              ,cf.manager
+              ,cf.date_request
+              ,cf.date_response
 	      ,CASE
                    -- Если день выходной или это пятница после 20:00, переносим на первый рабочий день
-                   WHEN c.is_working = 0
-			OR (c.is_working = 1 AND ws.dow = 5 AND time_req > '20:00:00')
-			   THEN (SELECT MIN(c.date_calendar)
-				   FROM d_calendar c
-				  WHERE c.date_calendar > ws.date_req 
-                                    AND c.is_working = 1) + INTERVAL '9 hours'
+                   WHEN dc.is_working = 0
+			OR (dc.is_working = 1 AND cf.dow = 5 AND cf.time_req > '20:00:00')
+			   THEN (SELECT MIN(dc.date_calendar)
+				   FROM dict_calendar dc
+				  WHERE dc.date_calendar > cf.date_req 
+                                    AND dc.is_working = 1) + INTERVAL '9 hours'
                    -- Если рабочий день до 09:00, переносим на 9 утра этого дня
-		   WHEN c.is_working = 1 AND ws.time_req < '09:00:00'
-                        THEN ws.date_req + INTERVAL '9 hours'
+		   WHEN dc.is_working = 1 AND cf.time_req < '09:00:00'
+                        THEN cf.date_req + INTERVAL '9 hours'
                    -- Если рабочий день (кроме пятницы) после 20:00, переносим на 9 утра следующего дня
-		   WHEN c.is_working = 1 AND ws.dow != 5 AND ws.time_req > '20:00:00'
-		        THEN ws.date_req + INTERVAL '1 days 9 hours'	       		
-		   ELSE ws.date_request
+		   WHEN cf.is_working = 1 AND cf.dow != 5 AND cf.time_req > '20:00:00'
+		        THEN cf.date_req + INTERVAL '1 days 9 hours'	       		
+		   ELSE cf.date_request
                END AS date_registration 
-          FROM work_schedul ws
-          LEFT JOIN d_calendar c ON ws.date_req = c.date_calendar
+          FROM calls_first cf
+          LEFT JOIN dict_calendar dc ON cf.date_req = dc.date_calendar
 )
 ```
 
@@ -82,7 +82,7 @@ date_registration AS(
 ```sql
 SELECT *
       ,ROUND(EXTRACT(EPOCH FROM date_response - date_registration) / 3600, 2) AS interval_hours
-  FROM date_registration
+  FROM shift_request
 ;
 ```
 
