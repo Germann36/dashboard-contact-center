@@ -73,15 +73,14 @@ date_registration AS(
 )
 ```
 
-### Шаг 5: Расчет времени обработки заявки
+### Шаг 4: Расчет времени обработки заявки
 
-Рассчитываем время между ответом (*create_date_status*) и регистрацией заявки (*work_app*). Результат переводим в часы и минуты для удобства анализа.
+Рассчитываем время между ответом (*date_response*) и регистрацией заявки (*date_registration*). Результат переводим в часы.
 
 ```sql
-SELECT *,
-       ROUND(EXTRACT(EPOCH FROM create_date_status - work_app) / 3600, 2) AS interval_hours,
-       ROUND(EXTRACT(EPOCH FROM create_date_status - work_app) / 60, 2) AS interval_minutes
-  FROM t_work_app;
+SELECT *
+      ,ROUND(EXTRACT(EPOCH FROM date_response - date_registration) / 3600, 2) AS interval_hours
+  FROM date_registration
 ```
 
 ### Шаг 6: Создание материализованного представления для дашборда
