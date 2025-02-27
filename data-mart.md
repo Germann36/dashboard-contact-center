@@ -53,23 +53,23 @@ date_registration AS(
               ,ws.date_request
               ,ws.date_response
 	      ,CASE 
-              -- Если день выходной или это пятница после 20:00, переносим на первый рабочий день
+               -- Если день выходной или это пятница после 20:00, переносим на первый рабочий день
                    WHEN c.is_working = 0
 			OR (c.is_working = 1 AND ws.dow = 5 AND time_req > '20:00:00')
 			   THEN (SELECT MIN(c.date_calendar)
 				   FROM d_calendar c
 				  WHERE c.date_calendar > ws.date_req 
                                     AND c.is_working = 1) + INTERVAL '9 hours'
-              -- Если рабочий день до 09:00, переносим на 9 утра этого дня
+               -- Если рабочий день до 09:00, переносим на 9 утра этого дня
 		   WHEN c.is_working = 1 AND ws.time_req < '09:00:00'
                         THEN ws.date_req + INTERVAL '9 hours'
-              -- Если рабочий день (кроме пятницы) после 20:00, переносим на 9 утра следующего дня
+               -- Если рабочий день (кроме пятницы) после 20:00, переносим на 9 утра следующего дня
 		   WHEN c.is_working = 1 AND ws.dow != 5 AND ws.time_req > '20:00:00'
 		        THEN ws.date_req + INTERVAL '1 days 9 hours'	       		
 		   ELSE ws.date_request
-             END AS date_registration 
-            FROM work_schedul ws
-            LEFT JOIN d_calendar c ON ws.date_req = c.date_calendar
+            END AS date_registration 
+           FROM work_schedul ws
+           LEFT JOIN d_calendar c ON ws.date_req = c.date_calendar
 )
 ```
 
