@@ -124,6 +124,33 @@ LEFT JOIN v_call_first vcf ON vcf.id_client = dc."ID"
 WHERE dc.source_client IN (SELECT name_source FROM source_list);
 ```
 
+### Шаг 6: Создание физической таблицы для хранения данных
+
+Для повышения производительности и удобства работы с данными создаем физическую таблицу `dash_contact_centr_table`, которая будет хранить данные из представления `dash_contact_centr_view`. Эта таблица создается один раз и будет использоваться для хранения актуальных данных.
+
+```sql
+-- Создаем физическую таблицу
+CREATE TABLE dash_contact_centr_table AS
+SELECT * 
+FROM dash_contact_centr_view;
+```
+
+---
+
+### Шаг 7: Блок автоматизации для обновления данных
+
+Для поддержания актуальности данных в таблице `dash_contact_centr_table` создаем блок автоматизации, который будет очищать таблицу и вставлять в нее новые данные из представления `dash_contact_centr_view`.
+
+```sql
+-- Очистка таблицы перед вставкой новых данных
+TRUNCATE TABLE dash_contact_centr_table;
+
+-- Вставка актуальных данных из представления
+INSERT INTO dash_contact_centr_table
+SELECT *
+FROM dash_contact_centr_view;
+```
+
 ---
 
 ## Заключение
