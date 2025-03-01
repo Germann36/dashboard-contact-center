@@ -124,6 +124,8 @@ LEFT JOIN v_call_first vcf ON vcf.id_client = dc."ID"
 WHERE dc.source_client IN (SELECT name_source FROM source_list);
 ```
 
+---
+
 ### Шаг 6: Создание физической таблицы для хранения данных
 
 Для повышения производительности и удобства работы с данными создаем физическую таблицу `dash_contact_centr_table`, которая будет хранить данные из представления `dash_contact_centr_view`. Эта таблица создается один раз и будет использоваться для хранения актуальных данных.
