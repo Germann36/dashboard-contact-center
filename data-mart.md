@@ -151,6 +151,8 @@ INSERT INTO dash_contact_centr_table
 SELECT *
 FROM dash_contact_centr_view;
 ```
+*Примечание: В планах автоматизировать ежедневное выполнение скрипта через библиотеку **schedule** в Python.*
+
 
 ---
 
